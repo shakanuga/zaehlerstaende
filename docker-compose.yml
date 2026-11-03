@@ -1,0 +1,20 @@
+services:
+  zaehler:
+    image: ghcr.io/shakanuga/zaehlerstaende:latest
+    container_name: zaehlerstand
+    restart: unless-stopped
+    networks:
+      br0:
+        ipv4_address: 192.168.1.40   # freie Adresse eintragen
+    environment:
+      TZ: Europe/Berlin
+      # Optional: Stand aus dem Foto lesen, siehe README
+      # OCR_PROVIDER: anthropic
+      # ANTHROPIC_API_KEY: ""
+    volumes:
+      - /mnt/user/appdata/zaehlerstand:/data
+      - /mnt/user/appdata/zaehlerstand-import:/import:ro
+
+networks:
+  br0:
+    external: true
