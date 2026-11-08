@@ -135,4 +135,5 @@ dialog::backdrop{background:rgba(10,14,15,.6)}
 .menu a{display:block;padding:14px 4px;border-bottom:1px solid var(--grid);text-decoration:none;font-weight:600}
 .login{max-width:380px;margin:9vh auto 0}
 .login h1{margin-bottom:12px}
+.login+.login{margin-top:16px}
 ul.plain{margin:0;padding-left:18px}

@@ -32,6 +32,25 @@ Keine Portfreigabe einrichten, die App ist fürs Heimnetz gedacht.
 Der erste Aufruf legt das Admin-Konto an. Bitte direkt nach dem Start erledigen, denn bis dahin kann
 das jeder im Netz.
 
+## Anmeldung mit Pocket ID
+
+Optional. Bestehende Konten werden beim ersten Login über den **Benutzernamen** gefunden (Groß- und Kleinschreibung egal) und danach fest verknüpft. Gibt es noch gar kein Konto, wird das erste Pocket-ID-Konto Admin.
+
+1. In Pocket ID einen OIDC-Client `Zählerstände` anlegen, Callback-URL `https://zaehler.example.de/auth/pocketid/zurueck`.
+2. Am Container setzen:
+
+| Variable | Wert |
+|---|---|
+| `OIDC_ISSUER` | Adresse von Pocket ID, z. B. `https://id.example.de` |
+| `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | aus Pocket ID |
+| `OIDC_LABEL` | optional, Text auf dem Knopf |
+| `OIDC_AUTO_REDIRECT` | `1` = Anmeldeseite überspringen |
+| `OIDC_DISABLE_PASSWORD` | `1` = nur noch Pocket ID |
+| `OIDC_AUTO_CREATE` | `1` = unbekannte Nutzer als Mitglied ohne Eintragsrecht anlegen |
+| `OIDC_ALLOWED_GROUPS` | optional, nur diese Pocket-ID-Gruppen dürfen rein |
+| `OIDC_ADMIN_GROUPS` | optional, neue Konten aus diesen Gruppen werden Admin |
+| `OIDC_REDIRECT_URI` | optional, falls die Rücksprung-Adresse falsch gebildet wird |
+
 ## Erste Schritte
 
 1. **Konten:** Unter Mehr, Verwaltung, Konten die Familie anlegen. Familienkonten sehen private

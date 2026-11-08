@@ -93,6 +93,8 @@ def connect(path):
 def init(path):
     con = connect(path)
     con.executescript(SCHEMA)
+    if "oidc_sub" not in [r[1] for r in con.execute("PRAGMA table_info(users)")]:
+        con.execute("ALTER TABLE users ADD COLUMN oidc_sub TEXT")
     if not con.execute("SELECT 1 FROM meters LIMIT 1").fetchone():
         for row in DEFAULT_METERS:
             con.execute(

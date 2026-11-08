@@ -9,10 +9,12 @@ import time
 from datetime import date, datetime, timedelta
 from functools import wraps
 
-from flask import Flask, abort, g, jsonify, request, send_file, send_from_directory
+from urllib.parse import quote
+
+from flask import Flask, abort, g, jsonify, redirect, request, send_file, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from . import db, exports, importer, ocr, photos, stats
+from . import db, exports, importer, ocr, photos, pocketid, stats
 
 SESSION_DAYS = 180
 COOKIE = "zaehler_session"
@@ -75,6 +77,11 @@ def create_app(data_dir=None, import_dir=None):
     app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     fails = {}
+    app.config["POCKETID"] = pocketid.PocketID()
+    oidc_key = pocketid.secret_key(data_dir)
+
+    def oidc():
+        return app.config["POCKETID"]
 
     def con():
         if "db" not in g:
@@ -245,9 +252,10 @@ def create_app(data_dir=None, import_dir=None):
             },
             ocr=bool(ocr.provider()),
             today=date.today().isoformat(),
+            oidc=oidc().public(),
         )
 
-    def start_session(user_id):
+    def start_session(user_id, res=None):
         token = secrets.token_urlsafe(32)
         expires = datetime.now() + timedelta(days=SESSION_DAYS)
         con().execute("DELETE FROM sessions WHERE expires_at<?", (now(),))
@@ -255,7 +263,7 @@ def create_app(data_dir=None, import_dir=None):
             "INSERT INTO sessions VALUES (?,?,?)",
             (hashlib.sha256(token.encode()).hexdigest(), user_id, expires.isoformat(timespec="seconds")),
         )
-        res = jsonify(ok=True)
+        res = res or jsonify(ok=True)
         res.set_cookie(COOKIE, token, max_age=SESSION_DAYS * 86400, httponly=True,
                        samesite="Lax", secure=request.is_secure)
         return res
@@ -281,8 +289,63 @@ def create_app(data_dir=None, import_dir=None):
         conn.commit()
         return res
 
+    @app.get("/auth/pocketid")
+    def oidc_start():
+        try:
+            url, pending = oidc().begin(request.host_url.rstrip("/") + "/auth/pocketid/zurueck",
+                                        request.args.get("next", "/"))
+        except pocketid.OIDCError as e:
+            return redirect("/?fehler=" + quote(str(e)))
+        res = redirect(url)
+        res.set_cookie(pocketid.PENDING_COOKIE, pocketid.sign(pending, oidc_key), max_age=pocketid.PENDING_MAX_AGE,
+                       httponly=True, samesite="Lax", secure=request.is_secure)
+        return res
+
+    @app.get("/auth/pocketid/zurueck")
+    def oidc_callback():
+        pending = pocketid.unsign(request.cookies.get(pocketid.PENDING_COOKIE), oidc_key)
+        try:
+            info = oidc().complete(request.args, pending)
+            user_id = oidc_user(info)
+        except pocketid.OIDCError as e:
+            res = redirect("/?fehler=" + quote(str(e)))
+        else:
+            res = start_session(user_id, redirect(pending["next"]))
+            con().commit()
+        res.delete_cookie(pocketid.PENDING_COOKIE)
+        return res
+
+    def oidc_user(info):
+        conn = con()
+        rows = [dict(r) for r in conn.execute("SELECT id, username, oidc_sub, active FROM users")]
+        row = pocketid.match_user(rows, info)
+        if row:
+            if not row["active"]:
+                raise pocketid.OIDCError("Dein Konto ist hier deaktiviert.")
+            if not row["oidc_sub"]:
+                conn.execute("UPDATE users SET oidc_sub=? WHERE id=?", (info["sub"], row["id"]))
+            return row["id"]
+        first = not rows
+        if not (first or oidc().auto_create):
+            raise pocketid.OIDCError(f"Zu „{info['username'] or info['email']}“ gibt es hier kein Konto. Der "
+                                     "Benutzername muss dem in Pocket ID entsprechen.")
+        base = info["username"] or info["email"].split("@")[0] or "nutzer"
+        name, n = base, 1
+        while conn.execute("SELECT 1 FROM users WHERE username=?", (name,)).fetchone():
+            n += 1
+            name = f"{base}{n}"
+        admin = first or info["is_admin"]
+        cur = conn.execute(
+            "INSERT INTO users(username,display_name,password_hash,role,can_record,created_at,oidc_sub) "
+            "VALUES (?,?,?,?,?,?,?)", (name, info["name"] or name, hash_password(secrets.token_urlsafe(32)),
+                                     "admin" if admin else "member", int(admin), now(), info["sub"]),
+        )
+        return cur.lastrowid
+
     @app.post("/api/login")
     def login():
+        if not oidc().public()["password_login"]:
+            return fail("Die Anmeldung mit Passwort ist abgeschaltet. Bitte Pocket ID nutzen.", 403)
         body = request.get_json(silent=True) or {}
         username = str(body.get("username", "")).strip()
         key = (request.remote_addr, username.lower())

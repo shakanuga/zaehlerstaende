@@ -94,16 +94,30 @@ function authForm(title,intro,fields,submit,run){
   $app.replaceChildren(h("div",{class:"shell"},form));
 }
 const field=(label,name,type="text",extra={})=>h("label",{class:"field"},label,h("input",{name,type,required:true,...extra}));
+function oidcBox(text){
+  const o=S.oidc||{};
+  if(!o.enabled)return null;
+  const err=new URLSearchParams(location.search).get("fehler");
+  return h("div",{class:"panel login stack"},h("h1",null,text),err&&h("p",{class:"err"},err),
+    h("a",{class:"btn wide",href:"/auth/pocketid?next="+encodeURIComponent("/"+location.hash)},o.label));
+}
 function viewLogin(){
-  authForm("Zählerstand",null,[field("Benutzername","username","text",{autocomplete:"username",autocapitalize:"none"}),
+  const o=S.oidc||{},params=new URLSearchParams(location.search);
+  if(o.auto_redirect&&!params.get("fehler")){location.href="/auth/pocketid?next="+encodeURIComponent("/"+location.hash);return}
+  const box=oidcBox("Zählerstand");
+  if(box&&!o.password_login){$app.replaceChildren(h("div",{class:"shell"},box));return}
+  authForm(box?"Mit Passwort":"Zählerstand",null,[field("Benutzername","username","text",{autocomplete:"username",autocapitalize:"none"}),
     field("Passwort","password","password",{autocomplete:"current-password"})],"Anmelden",
     d=>api("/api/login",{method:"POST",json:d}));
+  if(box)$app.firstChild.prepend(box);
 }
 function viewSetup(){
   authForm("Einrichten","Lege dein Admin-Konto an. Es sieht als einziges den privaten Zähler.",
     [field("Dein Name","name"),field("Benutzername","username","text",{autocomplete:"username",autocapitalize:"none"}),
      field("Passwort (mindestens 8 Zeichen)","password","password",{minLength:8,autocomplete:"new-password"})],"Konto anlegen",
     d=>api("/api/setup",{method:"POST",json:d}));
+  const box=oidcBox("Mit Pocket ID einrichten");
+  if(box)$app.firstChild.prepend(box);
 }
 
 /* Übersicht ------------------------------------------------------------ */
@@ -593,7 +607,8 @@ async function adminLog(body){
 async function boot(){
   const st=await api("/api/state").catch(e=>({error:e}));
   if(st.error){$app.replaceChildren(h("div",{class:"shell"},h("div",{class:"panel"},h("p",{class:"err"},st.error.message),h("button",{class:"btn",style:"margin-top:10px",onclick:boot},"Erneut versuchen"))));return}
-  S={user:st.user,setup:st.setup,ocr:st.ocr,today:st.today};
+  S={user:st.user,setup:st.setup,ocr:st.ocr,today:st.today,oidc:st.oidc};
+  if(st.user&&location.search.includes("fehler="))history.replaceState(null,"",location.pathname+location.hash);
   render();
 }
 boot();
