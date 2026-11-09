@@ -3,4 +3,4 @@ waitress>=3.0.2,<4
 pillow==12.3.0
 pillow-heif>=0.18,<2
 openpyxl==3.1.5
-reportlab==5.0.1
+reportlab==5.1.0
