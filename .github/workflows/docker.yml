@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # jeden Sonntag 04:17 UTC neu bauen – holt Sicherheitsupdates des Basis-Images
+    - cron: "17 4 * * 0"
 
 permissions:
   contents: read
