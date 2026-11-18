@@ -2,6 +2,18 @@
 
 Zählerstände mit Foto erfassen, für die Familie einsehbar auswerten und gegenüber dem Anbieter belegen.
 
+![Zählerstand auf dem Handy: Übersicht, Ablesen, Ablesung mit Foto, Statistik](docs/screenshots/handy.png)
+
+
+## Screenshots
+
+<table>
+<tr><td width="50%"><img src="docs/screenshots/desktop-statistik.png" alt="Statistik am PC: Verbrauch pro Monat"><br><sub>Statistik am PC: Verbrauch pro Monat</sub></td><td width="50%"><img src="docs/screenshots/verlauf.png" alt="Verlauf mit Differenz und Verbrauch pro Tag"><br><sub>Verlauf mit Differenz und Verbrauch pro Tag</sub></td></tr>
+<tr><td width="50%"><img src="docs/screenshots/nachweis.png" alt="Nachweis als PDF und Excel-Export"><br><sub>Nachweis als PDF und Excel-Export</sub></td></tr>
+</table>
+
+<sub>Screenshots mit erfundenen Demo-Ständen, die Zählerfotos sind gezeichnet.</sub>
+
 ## Installation auf Unraid
 
 Bei jedem Push auf `main` baut GitHub das Image `ghcr.io/shakanuga/zaehlerstaende:latest`.
